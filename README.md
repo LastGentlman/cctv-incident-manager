@@ -12,6 +12,9 @@ Una aplicación React para la gestión de incidentes y videos de vigilancia CCTV
 - ✅ Base de datos Supabase con esquema optimizado
 - ✅ Búsqueda de texto completo
 - ✅ Estadísticas de incidentes
+- ✅ CRUD completo con Supabase
+- ✅ Estados de carga y manejo de errores
+- ✅ IDs automáticos de incidentes (INC-001, INC-002, etc.)
 
 ## Tecnologías
 
@@ -137,10 +140,18 @@ REACT_APP_SUPABASE_ANON_KEY=tu-clave-anonima-aqui
 src/
 ├── components/
 │   └── CCTVIncidentManager.js
+├── lib/
+│   └── supabase.js
 ├── App.js
 ├── index.js
 └── index.css
 ```
+
+### Archivos importantes
+- `supabase-schema.sql`: Esquema completo de la base de datos
+- `test-schema.js`: Script de prueba para validar la conexión
+- `src/lib/supabase.js`: Cliente y funciones de Supabase
+- `env.example`: Plantilla de variables de entorno
 
 ## Contribuir
 
