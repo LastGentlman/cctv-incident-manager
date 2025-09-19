@@ -6,6 +6,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
     "dotenv": "^17.2.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -20,7 +22,10 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
-    "format:check": "prettier --check src/"
+    "format:check": "prettier --check src/",
+    "load-dummy": "node load-dummy-data.js",
+    "setup-db": "echo 'Ejecuta el archivo supabase-schema.sql en Supabase SQL Editor'",
+    "setup-dummy": "npm run setup-db && npm run load-dummy"
   },
   "eslintConfig": {
     "extends": [
