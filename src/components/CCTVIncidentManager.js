@@ -111,8 +111,9 @@ const CCTVIncidentManager = () => {
         ));
         setEditingIncident(null);
       } else {
-        // Create new incident
-        const newIncident = await incidentsAPI.create(formData);
+        // Create new incident - exclude id field for new incidents
+        const { id, ...incidentData } = formData;
+        const newIncident = await incidentsAPI.create(incidentData);
         setIncidents([newIncident, ...incidents]);
       }
 

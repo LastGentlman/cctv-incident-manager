@@ -5,12 +5,26 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create enum types for better data integrity
-CREATE TYPE incident_type AS ENUM ('empleado', 'otro');
-CREATE TYPE severity_level AS ENUM ('baja', 'media', 'alta');
-CREATE TYPE incident_status AS ENUM ('pendiente', 'investigando', 'resuelto');
+DO $$ BEGIN
+    CREATE TYPE incident_type AS ENUM ('empleado', 'otro');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE severity_level AS ENUM ('baja', 'media', 'alta');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE incident_status AS ENUM ('pendiente', 'investigando', 'resuelto');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create the main incidents table
-CREATE TABLE incidents (
+CREATE TABLE IF NOT EXISTS incidents (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     incident_id VARCHAR(20) UNIQUE NOT NULL, -- e.g., INC-001
     date DATE NOT NULL,
@@ -30,12 +44,12 @@ CREATE TABLE incidents (
 );
 
 -- Create an index for faster queries
-CREATE INDEX idx_incidents_date ON incidents(date);
-CREATE INDEX idx_incidents_type ON incidents(type);
-CREATE INDEX idx_incidents_severity ON incidents(severity);
-CREATE INDEX idx_incidents_status ON incidents(status);
-CREATE INDEX idx_incidents_employee ON incidents(employee);
-CREATE INDEX idx_incidents_incident_id ON incidents(incident_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_date ON incidents(date);
+CREATE INDEX IF NOT EXISTS idx_incidents_type ON incidents(type);
+CREATE INDEX IF NOT EXISTS idx_incidents_severity ON incidents(severity);
+CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status);
+CREATE INDEX IF NOT EXISTS idx_incidents_employee ON incidents(employee);
+CREATE INDEX IF NOT EXISTS idx_incidents_incident_id ON incidents(incident_id);
 
 -- Create a function to automatically update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -47,6 +61,7 @@ END;
 $$ language 'plpgsql';
 
 -- Create trigger to automatically update updated_at
+DROP TRIGGER IF EXISTS update_incidents_updated_at ON incidents;
 CREATE TRIGGER update_incidents_updated_at 
     BEFORE UPDATE ON incidents 
     FOR EACH ROW 
@@ -59,26 +74,27 @@ DECLARE
     next_number INTEGER;
 BEGIN
     -- Get the next number in sequence
-    SELECT COALESCE(MAX(CAST(SUBSTRING(incident_id FROM 5) AS INTEGER)), 0) + 1
+    SELECT COALESCE(MAX(CAST(SUBSTRING(incident_id FROM 3) AS INTEGER)), 0) + 1
     INTO next_number
     FROM incidents
-    WHERE incident_id LIKE 'INC-%';
+    WHERE incident_id LIKE 'V-%';
     
     -- Set the incident_id
-    NEW.incident_id := 'INC-' || LPAD(next_number::TEXT, 3, '0');
+    NEW.incident_id := 'V-' || LPAD(next_number::TEXT, 3, '0');
     
     RETURN NEW;
 END;
 $$ language 'plpgsql';
 
 -- Create trigger to automatically generate incident IDs
+DROP TRIGGER IF EXISTS generate_incident_id_trigger ON incidents;
 CREATE TRIGGER generate_incident_id_trigger
     BEFORE INSERT ON incidents
     FOR EACH ROW
-    WHEN (NEW.incident_id IS NULL OR NEW.incident_id = '')
     EXECUTE FUNCTION generate_incident_id();
 
 -- Create a view for easier querying with formatted data
+DROP VIEW IF EXISTS incidents_view;
 CREATE VIEW incidents_view AS
 SELECT 
     id,
@@ -118,10 +134,12 @@ FROM incidents;
 -- Create RLS (Row Level Security) policies
 ALTER TABLE incidents ENABLE ROW LEVEL SECURITY;
 
--- Policy to allow all operations for authenticated users
+-- Policy to allow all operations for anonymous and authenticated users
 -- Note: In production, you should create more restrictive policies based on user roles
-CREATE POLICY "Allow all operations for authenticated users" ON incidents
-    FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON incidents;
+DROP POLICY IF EXISTS "Allow all operations for all users" ON incidents;
+CREATE POLICY "Allow all operations for all users" ON incidents
+    FOR ALL USING (true);
 
 -- Create a function to get incident statistics
 CREATE OR REPLACE FUNCTION get_incident_stats()
@@ -233,6 +251,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create indexes for full-text search
+DROP INDEX IF EXISTS idx_incidents_search;
 CREATE INDEX idx_incidents_search ON incidents 
 USING gin(to_tsvector('spanish', 
     COALESCE(description, '') || ' ' || 
