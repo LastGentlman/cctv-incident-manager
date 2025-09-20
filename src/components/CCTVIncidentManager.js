@@ -519,7 +519,7 @@ const CCTVIncidentManager = () => {
               <img 
                 src="/logo.svg" 
                 alt="Logo" 
-                className="w-20 h-20 object-contain"
+                className="w-28 h-28 sm:w-32 sm:h-32 object-contain"
               />
             </div>
             <div className="text-center mb-4">
@@ -749,89 +749,93 @@ const CCTVIncidentManager = () => {
             <>
               <div className="space-y-4">
                 {currentIncidents.map((incident) => (
-                  <div key={incident.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start">
+                  <div key={incident.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        {/* Header responsive */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
                           <span className="font-semibold text-lg text-gray-900">{incident.incident_id}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${incident.type === 'empleado' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}`}>
-                            {incident.type === 'empleado' ? 'Empleado' : 'Otro'}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(incident.severity)}`}>
-                            {incident.severity === 'alta' ? '🔴' : incident.severity === 'media' ? '🟡' : '🟢'} {incident.severity.toUpperCase()}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(incident.status)}`}>
-                            {incident.status === 'pendiente' ? '⏳' : incident.status === 'investigando' ? '🔍' : '✅'} {incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}
-                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${incident.type === 'empleado' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}`}>
+                              {incident.type === 'empleado' ? 'Empleado' : 'Otro'}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(incident.severity)}`}>
+                              {incident.severity === 'alta' ? '🔴' : incident.severity === 'media' ? '🟡' : '🟢'} {incident.severity.toUpperCase()}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(incident.status)}`}>
+                              {incident.status === 'pendiente' ? '⏳' : incident.status === 'investigando' ? '🔍' : '✅'} {incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}
+                            </span>
+                          </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3">
                           <div>
-                            <p className="text-sm text-gray-600">Fecha y Hora</p>
-                            <p className="font-medium">{incident.date} {incident.time}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">Fecha y Hora</p>
+                            <p className="font-medium text-sm sm:text-base">{incident.date} {incident.time}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">Ubicación</p>
-                            <p className="font-medium">{incident.location}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">Ubicación</p>
+                            <p className="font-medium text-sm sm:text-base">{incident.location}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">Cámara</p>
-                            <p className="font-medium">{incident.camera}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">Cámara</p>
+                            <p className="font-medium text-sm sm:text-base">{incident.camera}</p>
                           </div>
                           {incident.employee && (
                             <div>
-                              <p className="text-sm text-gray-600">Empleado</p>
-                              <p className="font-medium">{incident.employee}</p>
+                              <p className="text-xs sm:text-sm text-gray-600">Empleado</p>
+                              <p className="font-medium text-sm sm:text-base break-words">{incident.employee}</p>
                             </div>
                           )}
                           <div>
-                            <p className="text-sm text-gray-600">Video</p>
+                            <p className="text-xs sm:text-sm text-gray-600">Video</p>
                             {incident.video_file ? (
                               <a 
                                 href={incident.video_file} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="font-medium text-blue-600 hover:text-blue-800 underline"
+                                className="font-medium text-blue-600 hover:text-blue-800 underline text-sm sm:text-base"
                               >
                                 Ver Video
                               </a>
                             ) : (
-                              <p className="font-medium text-gray-400">Sin video</p>
+                              <p className="font-medium text-gray-400 text-sm sm:text-base">Sin video</p>
                             )}
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">Reportado por</p>
-                            <p className="font-medium">{incident.reported_by}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">Reportado por</p>
+                            <p className="font-medium text-sm sm:text-base">{incident.reported_by}</p>
                           </div>
                         </div>
                         
                         <div className="mb-3">
-                          <p className="text-sm text-gray-600">Descripción</p>
-                          <p className="text-gray-900">{incident.description}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">Descripción</p>
+                          <p className="text-gray-900 text-sm sm:text-base break-words">{incident.description}</p>
                         </div>
                         
                         {incident.actions && (
-                          <div>
-                            <p className="text-sm text-gray-600">Acciones Tomadas</p>
-                            <p className="text-gray-900">{incident.actions}</p>
+                          <div className="mb-3">
+                            <p className="text-xs sm:text-sm text-gray-600">Acciones Tomadas</p>
+                            <p className="text-gray-900 text-sm sm:text-base break-words">{incident.actions}</p>
                           </div>
                         )}
                       </div>
                       
-                      <div className="flex gap-2 ml-4">
+                      {/* Botones de acción responsive */}
+                      <div className="flex gap-2 sm:ml-4 justify-end sm:justify-start">
                         <button
                           onClick={() => handleEdit(incident)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
                           title="Editar"
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <Edit3 className="w-4 h-4 sm:w-4 sm:h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(incident.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
                           title="Eliminar"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 sm:w-4 sm:h-4" />
                         </button>
                       </div>
                     </div>
