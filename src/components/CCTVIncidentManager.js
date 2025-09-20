@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, AlertTriangle, Eye, Filter, Trash2, Edit3, X, FileText, Download, Play } from 'lucide-react';
 import { incidentsAPI } from '../lib/supabase';
 import jsPDF from 'jspdf';
+import Swal from 'sweetalert2';
 
 const CCTVIncidentManager = () => {
   const [incidents, setIncidents] = useState([]);
@@ -21,6 +22,10 @@ const CCTVIncidentManager = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
+  const [cameraSuggestions, setCameraSuggestions] = useState([]);
+  const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
+  const [showCameraSuggestions, setShowCameraSuggestions] = useState(false);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -30,7 +35,7 @@ const CCTVIncidentManager = () => {
     severity: 'baja',
     status: 'pendiente',
     employee: '',
-    location: '',
+    location: '001',
     camera: '',
     video_file: '',
     description: '',
@@ -41,7 +46,22 @@ const CCTVIncidentManager = () => {
   // Load incidents from Supabase
   useEffect(() => {
     loadIncidents();
+    loadSuggestions();
   }, []);
+
+  // Load autocomplete suggestions
+  const loadSuggestions = async () => {
+    try {
+      const [employees, cameras] = await Promise.all([
+        incidentsAPI.getUniqueEmployees(),
+        incidentsAPI.getUniqueCameras()
+      ]);
+      setEmployeeSuggestions(employees);
+      setCameraSuggestions(cameras);
+    } catch (err) {
+      console.error('Error loading suggestions:', err);
+    }
+  };
 
   const loadIncidents = async () => {
     try {
@@ -92,13 +112,49 @@ const CCTVIncidentManager = () => {
   const handleSubmit = async () => {
     // Validar campos requeridos
     if (!formData.date || !formData.time || !formData.location || !formData.camera || !formData.description || !formData.reported_by) {
-      alert('Por favor completa todos los campos requeridos');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Campos Requeridos',
+        text: 'Por favor completa todos los campos requeridos',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#3B82F6'
+      });
       return;
     }
     
     if (formData.type === 'empleado' && !formData.employee) {
-      alert('El nombre del empleado es requerido para incidentes de empleado');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Empleado Requerido',
+        text: 'El nombre del empleado es requerido para incidentes de empleado',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#3B82F6'
+      });
       return;
+    }
+    
+    // Validar que el link de video no se repita
+    if (formData.video_file && formData.video_file.trim() !== '') {
+      try {
+        const videoExists = await incidentsAPI.checkVideoLinkExists(
+          formData.video_file, 
+          editingIncident ? editingIncident.id : null
+        );
+        
+        if (videoExists) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Link de Video Duplicado',
+            text: 'Este link de video ya está siendo utilizado en otro incidente. Por favor, usa un link diferente.',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#EF4444'
+          });
+          return;
+        }
+      } catch (err) {
+        setError('Error al verificar el link de video: ' + err.message);
+        return;
+      }
     }
     
     try {
@@ -119,6 +175,18 @@ const CCTVIncidentManager = () => {
         setIncidents([newIncident, ...incidents]);
       }
 
+      // Reload suggestions to include new data
+      await loadSuggestions();
+      
+      // Mostrar confirmación de éxito
+      await Swal.fire({
+        title: editingIncident ? 'Actualizado' : 'Creado',
+        text: `El incidente ha sido ${editingIncident ? 'actualizado' : 'creado'} correctamente.`,
+        icon: 'success',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#10B981'
+      });
+      
       resetForm();
     } catch (err) {
       setError('Error al guardar el incidente: ' + err.message);
@@ -136,7 +204,7 @@ const CCTVIncidentManager = () => {
       severity: 'baja',
       status: 'pendiente',
       employee: '',
-      location: '',
+      location: '001',
       camera: '',
       video_file: '',
       description: '',
@@ -145,6 +213,8 @@ const CCTVIncidentManager = () => {
     });
     setShowForm(false);
     setEditingIncident(null);
+    setShowEmployeeSuggestions(false);
+    setShowCameraSuggestions(false);
   };
 
   const handleEdit = (incident) => {
@@ -153,13 +223,73 @@ const CCTVIncidentManager = () => {
     setShowForm(true);
   };
 
+  // Handle employee input change with autocomplete
+  const handleEmployeeChange = (value) => {
+    setFormData({...formData, employee: value});
+    setShowEmployeeSuggestions(value.length > 0);
+  };
+
+  // Handle camera input change with autocomplete
+  const handleCameraChange = (value) => {
+    setFormData({...formData, camera: value});
+    setShowCameraSuggestions(value.length > 0);
+  };
+
+  // Select employee suggestion
+  const selectEmployeeSuggestion = (employee) => {
+    setFormData({...formData, employee});
+    setShowEmployeeSuggestions(false);
+  };
+
+  // Select camera suggestion
+  const selectCameraSuggestion = (camera) => {
+    setFormData({...formData, camera});
+    setShowCameraSuggestions(false);
+  };
+
+  // Filter suggestions based on input
+  const getFilteredEmployeeSuggestions = () => {
+    if (!formData.employee) return employeeSuggestions;
+    return employeeSuggestions.filter(emp => 
+      emp.toLowerCase().includes(formData.employee.toLowerCase())
+    );
+  };
+
+  const getFilteredCameraSuggestions = () => {
+    if (!formData.camera) return cameraSuggestions;
+    return cameraSuggestions.filter(cam => 
+      cam.toLowerCase().includes(formData.camera.toLowerCase())
+    );
+  };
+
   const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este incidente?')) {
+    const result = await Swal.fire({
+      title: '¿Eliminar Incidente?',
+      text: '¿Estás seguro de que quieres eliminar este incidente? Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
       try {
         setLoading(true);
         setError(null);
         await incidentsAPI.delete(id);
         setIncidents(incidents.filter(incident => incident.id !== id));
+        
+        // Mostrar confirmación de éxito
+        await Swal.fire({
+          title: 'Eliminado',
+          text: 'El incidente ha sido eliminado correctamente.',
+          icon: 'success',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#10B981'
+        });
       } catch (err) {
         setError('Error al eliminar el incidente: ' + err.message);
       } finally {
@@ -184,6 +314,47 @@ const CCTVIncidentManager = () => {
       case 'pendiente': return 'bg-orange-100 text-orange-800 border-orange-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  // Función auxiliar para dividir texto en múltiples líneas
+  const splitTextIntoLines = (text, maxLength) => {
+    if (!text || text.length <= maxLength) {
+      return [text || ''];
+    }
+    
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      // Calcular la longitud incluyendo el espacio si ya hay contenido en la línea
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      
+      // Si la línea resultante sería exactamente maxLength + 1 (23 caracteres), 
+      // o si excede el límite, movemos la palabra al siguiente renglón
+      if (testLine.length >= maxLength) {
+        // Si la línea actual no está vacía, la guardamos y empezamos una nueva
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          // Si una palabra individual es más larga que maxLength, la dividimos
+          while (word.length > maxLength) {
+            lines.push(word.substring(0, maxLength));
+            word = word.substring(maxLength);
+          }
+          currentLine = word;
+        }
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
   };
 
   const generatePDFReport = () => {
@@ -212,8 +383,15 @@ const CCTVIncidentManager = () => {
       yPosition += 20;
       
 
-      // Use the filtered incidents from the main interface
-      const incidentsToReport = filteredIncidents;
+      // Use the filtered incidents from the main interface, sorted by date (most recent first)
+      const incidentsToReport = [...filteredIncidents].sort((a, b) => {
+        // Sort by date first (most recent first)
+        const dateComparison = new Date(b.date) - new Date(a.date);
+        if (dateComparison !== 0) return dateComparison;
+        
+        // If dates are the same, sort by time (most recent first)
+        return new Date(`1970-01-01T${b.time}`) - new Date(`1970-01-01T${a.time}`);
+      });
 
       // Simple statistics
       const totalIncidents = incidentsToReport.length;
@@ -258,6 +436,21 @@ const CCTVIncidentManager = () => {
             yPosition = 20;
           }
 
+          // Calcular la altura necesaria para esta fila
+          const employeeText = incident.employee || '-';
+          const employeeLines = splitTextIntoLines(employeeText, 22);
+          const rowHeight = Math.max(5, employeeLines.length * 4); // Mínimo 5, más si hay múltiples líneas
+
+          // Verificar si necesitamos una nueva página para esta fila
+          if (yPosition + rowHeight > pageHeight - 30) {
+            doc.addPage();
+            yPosition = 20;
+          }
+
+          // Dibujar las líneas de la fila
+          const startY = yPosition;
+          
+          // Primera línea con la mayoría de datos
           doc.text(incident.incident_id, 27, yPosition, { align: 'center' });
           doc.text(incident.date, 42, yPosition, { align: 'center' });
           doc.text(incident.time, 62, yPosition, { align: 'center' });
@@ -266,21 +459,32 @@ const CCTVIncidentManager = () => {
           doc.text(incident.status.charAt(0).toUpperCase() + incident.status.slice(1), 112, yPosition);
           doc.text(incident.location, 132, yPosition, { align: 'center' });
           doc.text(incident.camera, 152, yPosition, { align: 'center' });
-          doc.text(incident.employee || '-', 172, yPosition, { align: 'center' });
           
           // Video column with link
           if (incident.video_file) {
             // Add clickable link for video
             doc.setTextColor(0, 0, 255); // Blue color for link
-            doc.text('Ver Video', 192, yPosition, { align: 'center' });
+            doc.setFont('helvetica', 'bolditalic'); // Bold and italic
+            doc.text('   Ver Video', 192, yPosition, { align: 'center' });
             // Add the actual link (this will be clickable in the PDF)
             doc.link(185, yPosition - 3, 15, 3, { url: incident.video_file });
             doc.setTextColor(0, 0, 0); // Reset to black
+            doc.setFont('helvetica', 'normal'); // Reset font to normal
           } else {
             doc.text('Sin video', 192, yPosition, { align: 'center' });
           }
-          
-          yPosition += 5;
+
+          // Dibujar el nombre del empleado en múltiples líneas si es necesario
+          let currentY = yPosition;
+          employeeLines.forEach((line, lineIndex) => {
+            doc.text(line, 172, currentY, { align: 'center' });
+            if (lineIndex < employeeLines.length - 1) {
+              currentY += 4; // Espacio entre líneas
+            }
+          });
+
+          // Ajustar yPosition para la siguiente fila
+          yPosition += rowHeight;
         });
       } else {
         doc.setFontSize(12);
@@ -764,16 +968,32 @@ const CCTVIncidentManager = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {formData.type === 'empleado' && (
-                    <div>
+                    <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Empleado*</label>
                       <input
                         type="text"
                         value={formData.employee}
-                        onChange={(e) => setFormData({...formData, employee: e.target.value})}
+                        onChange={(e) => handleEmployeeChange(e.target.value)}
+                        onFocus={() => setShowEmployeeSuggestions(formData.employee.length > 0)}
+                        onBlur={() => setTimeout(() => setShowEmployeeSuggestions(false), 200)}
                         required={formData.type === 'empleado'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Nombre del empleado"
+                        autoComplete="off"
                       />
+                      {showEmployeeSuggestions && getFilteredEmployeeSuggestions().length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                          {getFilteredEmployeeSuggestions().map((employee, index) => (
+                            <div
+                              key={index}
+                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                              onClick={() => selectEmployeeSuggestion(employee)}
+                            >
+                              {employee}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className={formData.type === 'empleado' ? '' : 'col-span-2'}>
@@ -793,16 +1013,32 @@ const CCTVIncidentManager = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Cámara*</label>
                     <input
                       type="text"
                       value={formData.camera}
-                      onChange={(e) => setFormData({...formData, camera: e.target.value})}
+                      onChange={(e) => handleCameraChange(e.target.value)}
+                      onFocus={() => setShowCameraSuggestions(formData.camera.length > 0)}
+                      onBlur={() => setTimeout(() => setShowCameraSuggestions(false), 200)}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="ID de la cámara"
+                      autoComplete="off"
                     />
+                    {showCameraSuggestions && getFilteredCameraSuggestions().length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                        {getFilteredCameraSuggestions().map((camera, index) => (
+                          <div
+                            key={index}
+                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                            onClick={() => selectCameraSuggestion(camera)}
+                          >
+                            {camera}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Link del Video</label>
